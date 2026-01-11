@@ -76,8 +76,6 @@
         <item name="android:windowIsTranslucent">true</item>
     </style>
 
-    <style name="Theme.Muzei.Dialog" parent="Theme.Material3.DayNight.Dialog.Alert" />
-
     <style name="Theme.Muzei.Wallpaper" parent="Theme.Muzei">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowShowWallpaper">true</item>

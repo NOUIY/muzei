@@ -168,7 +168,7 @@
         <activity
             android:name="com.google.android.apps.muzei.tasker.TaskerSettingActivity"
             android:exported="true"
-            android:theme="@style/Theme.Muzei.Dialog">
+            android:theme="@style/Theme.Muzei.Transparent">
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING"/>
             </intent-filter>

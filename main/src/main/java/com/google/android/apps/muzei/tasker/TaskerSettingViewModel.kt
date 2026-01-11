@@ -85,7 +85,8 @@ internal class TaskerSettingViewModel(
                     },
                     application.getString(R.string.tasker_action_select_provider,
                             providerInfo.loadLabel(pm)),
-                    SelectProviderAction(providerInfo.authority)))
+                    SelectProviderAction(providerInfo.authority),
+                    providerInfo.packageName))
         }
         actionsList.sortedWith(comparator)
     }

@@ -16,19 +16,31 @@
 
 package com.google.android.apps.muzei.tasker
 
-import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
-import android.view.ViewGroup
-import android.widget.ArrayAdapter
-import android.widget.TextView
-import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.apps.muzei.util.collectIn
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.apps.muzei.util.rememberDrawablePainter
 import com.joaomgcd.taskerpluginlibrary.TaskerPluginConstants.EXTRA_BUNDLE
 import com.joaomgcd.taskerpluginlibrary.TaskerPluginConstants.EXTRA_STRING_BLURB
 import net.nurik.roman.muzei.R
@@ -39,61 +51,59 @@ import net.nurik.roman.muzei.R
  */
 class TaskerSettingActivity : AppCompatActivity() {
 
-    private val viewModel: TaskerSettingViewModel by viewModels()
-
-    private val adapter by lazy {
-        ActionAdapter(this)
-    }
-
-    private val dialog: AlertDialog by lazy {
-        MaterialAlertDialogBuilder(this, R.style.Theme_Muzei_Dialog)
-                .setTitle(R.string.tasker_setting_dialog_title)
-                .setSingleChoiceItems(adapter, -1) { _: DialogInterface, which: Int ->
-                    val action = adapter.getItem(which) ?: return@setSingleChoiceItems
-                    val intent = Intent().apply {
-                        putExtra(EXTRA_STRING_BLURB, action.text)
-                        putExtra(EXTRA_BUNDLE, action.action.toBundle())
-                    }
-                    setResult(RESULT_OK, intent)
-                    finish()
-                }
-                .setOnCancelListener {
-                    setResult(RESULT_CANCELED, null)
-                    finish()
-                }
-                .create()
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel.getActions().collectIn(this) { actions ->
-            adapter.clear()
-            adapter.addAll(actions)
-            if (!dialog.isShowing) {
-                dialog.show()
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        if (dialog.isShowing) {
-            dialog.dismiss()
-        }
-        super.onDestroy()
-    }
-
-    private class ActionAdapter(
-            context: Context
-    ) : ArrayAdapter<Action>(context, R.layout.tasker_action_item, 0) {
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val view = super.getView(position, convertView, parent) as TextView
-            getItem(position)?.let { action ->
-                view.setCompoundDrawablesRelative(
-                        action.icon, null, null, null)
-                view.text = action.text
-            }
-            return view
+        setContent {
+            val viewModel = viewModel<TaskerSettingViewModel>()
+            AlertDialog(
+                onDismissRequest = {
+                    setResult(RESULT_CANCELED, null)
+                    finish()
+                },
+                confirmButton = {
+                    // Users confirm by selecting an option from the list
+                },
+                title = {
+                    Text(stringResource(R.string.tasker_setting_dialog_title))
+                },
+                text = {
+                    val actions by viewModel.getActions().collectAsState(emptyList())
+                    LazyColumn {
+                        items(
+                            actions,
+                            key = { it.action.toBundle() }
+                        ) { action ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                                    .clickable(onClickLabel = action.text) {
+                                        val intent = Intent().apply {
+                                            putExtra(EXTRA_STRING_BLURB, action.text)
+                                            putExtra(EXTRA_BUNDLE, action.action.toBundle())
+                                        }
+                                        setResult(RESULT_OK, intent)
+                                        finish()
+                                    },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                val icon = rememberDrawablePainter(action.icon)
+                                Image(
+                                    icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp),
+                                    contentScale = ContentScale.Crop,
+                                )
+                                Spacer(Modifier.size(16.dp))
+                                Text(
+                                    text = action.text,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                        }
+                    }
+                }
+            )
         }
     }
 }
