@@ -48,10 +48,127 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Devices.PHONE
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.google.android.apps.muzei.sync.ProviderManager
 import com.google.android.apps.muzei.theme.AppTheme
 import com.google.android.apps.muzei.util.RadioButtonGroup
 import com.google.android.apps.muzei.util.RadioButtonSectionHeader
+import com.google.firebase.Firebase
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.analytics
+import com.google.firebase.analytics.logEvent
 import net.nurik.roman.muzei.R
+
+@Composable
+fun AutoAdvance(
+    providerManager: ProviderManager,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
+    onOpenTasker: () -> Unit = {},
+) {
+    // Advance on Wifi
+    val defaultAdvanceOnWifi = remember {
+        providerManager.loadOnWifi
+    }
+    var advanceOnWifi by remember { mutableStateOf(defaultAdvanceOnWifi) }
+
+    // Ordering
+    val orderingOptions = listOf(
+        stringResource(R.string.auto_advance_ordering_in_order),
+        stringResource(R.string.auto_advance_ordering_new_in_order),
+        stringResource(R.string.auto_advance_ordering_random),
+    )
+    val orderingToStringMapper: (ordering: ProviderManager.LoadOrdering) -> String = { ordering ->
+        when (ordering) {
+            ProviderManager.LoadOrdering.IN_ORDER -> orderingOptions[0]
+            ProviderManager.LoadOrdering.NEW_IN_ORDER -> orderingOptions[1]
+            ProviderManager.LoadOrdering.RANDOM -> orderingOptions[2]
+        }
+    }
+    val stringToOrderingMapper: (string: String) -> ProviderManager.LoadOrdering = { string ->
+        when (string) {
+            orderingOptions[0] -> ProviderManager.LoadOrdering.IN_ORDER
+            orderingOptions[1] -> ProviderManager.LoadOrdering.NEW_IN_ORDER
+            else -> ProviderManager.LoadOrdering.RANDOM
+        }
+    }
+    val defaultOrderingOption = remember {
+        val orderingValue = providerManager.loadOrdering
+        orderingToStringMapper(orderingValue)
+    }
+    var orderingSelectedOption by remember { mutableStateOf(defaultOrderingOption) }
+
+    // Interval
+    val intervalOptions = listOf(
+        stringResource(R.string.auto_advance_interval_15m),
+        stringResource(R.string.auto_advance_interval_30m),
+        stringResource(R.string.auto_advance_interval_1h),
+        stringResource(R.string.auto_advance_interval_3h),
+        stringResource(R.string.auto_advance_interval_6h),
+        stringResource(R.string.auto_advance_interval_24h),
+        stringResource(R.string.auto_advance_interval_72h),
+        stringResource(R.string.auto_advance_interval_never),
+    )
+    val intervalToStringMapper: (interval: Long) -> String = { interval ->
+        when (interval) {
+            60L * 15 -> intervalOptions[0]
+            60L * 30 -> intervalOptions[1]
+            60L * 60 -> intervalOptions[2]
+            60L * 60 * 3 -> intervalOptions[3]
+            60L * 60 * 6 -> intervalOptions[4]
+            60L * 60 * 24 -> intervalOptions[5]
+            60L * 60 * 72 -> intervalOptions[6]
+            else -> intervalOptions[7]
+        }
+    }
+    val stringToIntervalMapper: (string: String) -> Long = { string ->
+        when (string) {
+            intervalOptions[0] -> 60L * 15
+            intervalOptions[1] -> 60L * 30
+            intervalOptions[2] -> 60L * 60
+            intervalOptions[3] -> 60L * 60 * 3
+            intervalOptions[4] -> 60L * 60 * 6
+            intervalOptions[5] -> 60L * 60 * 24
+            intervalOptions[6] -> 60L * 60 * 72
+            else -> 0
+        }
+    }
+    val defaultIntervalOption = remember {
+        val intervalValue = providerManager.loadFrequencySeconds
+        intervalToStringMapper(intervalValue)
+    }
+    var intervalSelectedOption by remember { mutableStateOf(defaultIntervalOption) }
+
+    AutoAdvance(
+        advanceOnWifi = advanceOnWifi,
+        onAdvanceOnWifiChanged = { isChecked ->
+            Firebase.analytics.logEvent("auto_advance_load_on_wifi") {
+                param(FirebaseAnalytics.Param.VALUE, isChecked.toString())
+            }
+            providerManager.loadOnWifi = isChecked
+            advanceOnWifi = isChecked
+        },
+        orderingSelectedOption = orderingSelectedOption,
+        onOrderingSelectedOptionChange = { selected ->
+            Firebase.analytics.logEvent("auto_advance_load_ordering") {
+                param(FirebaseAnalytics.Param.VALUE, selected)
+            }
+            providerManager.loadOrdering = stringToOrderingMapper(selected)
+            orderingSelectedOption = selected
+        },
+        intervalSelectedOption = intervalSelectedOption,
+        onIntervalSelectedOptionChange = { selected ->
+            val newInterval = stringToIntervalMapper(selected)
+            Firebase.analytics.logEvent("auto_advance_load_frequency") {
+                param(FirebaseAnalytics.Param.VALUE, newInterval)
+            }
+            providerManager.loadFrequencySeconds = newInterval
+            intervalSelectedOption = selected
+        },
+        modifier = modifier,
+        contentPadding = contentPadding,
+        onOpenTasker = onOpenTasker,
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +194,9 @@ fun AutoAdvance(
         ) {
             Text(
                 text = stringResource(R.string.auto_advance_title),
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
                 style = MaterialTheme.typography.headlineLarge,
             )
 
@@ -105,7 +224,9 @@ fun AutoAdvance(
                 Text(
                     text = stringResource(R.string.auto_advance_wifi),
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f).padding(start = 8.dp, end = 16.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp, end = 16.dp)
                 )
             }
             RadioButtonSectionHeader(
