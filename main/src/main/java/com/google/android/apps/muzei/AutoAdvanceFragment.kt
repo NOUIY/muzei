@@ -26,14 +26,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
@@ -47,7 +44,7 @@ import com.google.firebase.analytics.analytics
 import com.google.firebase.analytics.logEvent
 import net.nurik.roman.muzei.R
 
-class AutoAdvanceFragment : Fragment(R.layout.auto_advance_fragment) {
+class AutoAdvanceFragment : Fragment() {
     companion object {
         private const val TASKER_PACKAGE_NAME = "net.dinglisch.android.taskerm"
     }
