@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.stateIn
 
 data class ProviderInfo(
         val authority: String,
@@ -80,10 +81,10 @@ class ChooseProviderViewModel(application: Application) : AndroidViewModel(appli
     private val database = MuzeiDatabase.getInstance(application)
 
     val currentProvider = database.providerDao().getCurrentProviderFlow()
-            .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
     val unsupportedSources = LegacySourceManager.getInstance(application).unsupportedSources
-            .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
     private val comparator = Comparator<ProviderInfo> { p1, p2 ->
         // The SourceArtProvider should always the last provider listed
@@ -177,7 +178,7 @@ class ChooseProviderViewModel(application: Application) : AndroidViewModel(appli
                     currentArtworkUri = currentArtwork?.imageUri
             )
         }.sortedWith(comparator)
-    }.shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
     internal fun refreshDescription(authority: String) {
         // Remove the current description and trigger the invalidation

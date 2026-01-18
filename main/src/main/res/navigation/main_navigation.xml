@@ -47,8 +47,7 @@
         <fragment
             android:id="@+id/choose_provider_fragment"
             android:name="com.google.android.apps.muzei.ChooseProviderFragment"
-            android:label="@string/section_choose_source"
-            tools:layout="@layout/choose_provider_fragment">
+            android:label="@string/section_choose_source">
             <argument
                 android:name="authority"
                 app:argType="string"

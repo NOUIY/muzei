@@ -22,6 +22,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -72,6 +73,7 @@ fun ChooseProviderItem(
     providerInfo: ProviderInfo,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onBrowseClick: () -> Unit = {},
 ) {
@@ -92,7 +94,12 @@ fun ChooseProviderItem(
             Image(
                 icon,
                 contentDescription = null,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier
+                    .size(40.dp)
+                    .combinedClickable(
+                        onLongClick = onLongClick,
+                        onClick = onClick
+                    ),
                 contentScale = ContentScale.Crop,
             )
             // App Title
