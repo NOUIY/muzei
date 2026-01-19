@@ -34,14 +34,13 @@ import androidx.appcompat.widget.TooltipCompat
 import androidx.core.app.RemoteActionCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.children
 import androidx.core.view.get
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.os.BundleCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.AndroidViewModel
@@ -377,11 +376,10 @@ class ArtDetailFragment : Fragment(R.layout.art_detail_fragment) {
                     // Try to restore any saved state of the SubsamplingScaleImageView
                     // This would normally only be available after onViewStateRestored(), but
                     // this is within coroutine that is only launched when STARTED
-                    @Suppress("DEPRECATION")
                     val backgroundImageViewState = view.findViewTreeSavedStateRegistryOwner()
                             ?.savedStateRegistry
                             ?.consumeRestoredStateForKey(KEY_IMAGE_VIEW_STATE)
-                            ?.getSerializable(KEY_IMAGE_VIEW_STATE) as ImageViewState?
+                            ?.getSerializableCompat<ImageViewState>(KEY_IMAGE_VIEW_STATE)
                     backgroundImage.setImage(ImageSource.uri(MuzeiContract.Artwork.CONTENT_URI),
                             backgroundImageViewState)
                     // Set the image to visible since SubsamplingScaleImageView does some of

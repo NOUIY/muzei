@@ -19,6 +19,7 @@ package com.google.android.apps.muzei.util
 import android.os.Bundle
 import android.os.Parcelable
 import androidx.core.os.BundleCompat
+import java.io.Serializable
 
 /**
  * Kotlin extension method wrapper around [BundleCompat.getParcelable].
@@ -26,3 +27,10 @@ import androidx.core.os.BundleCompat
 inline fun <reified P : Parcelable> Bundle.getParcelableCompat(
     key: String
 ) = BundleCompat.getParcelable(this, key, P::class.java)
+
+/**
+ * Kotlin extension method wrapper around [BundleCompat.getSerializable].
+ */
+inline fun <reified P : Serializable> Bundle.getSerializableCompat(
+    key: String
+) = BundleCompat.getSerializable(this, key, P::class.java)
