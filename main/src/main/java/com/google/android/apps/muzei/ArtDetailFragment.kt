@@ -38,6 +38,10 @@ import androidx.core.view.children
 import androidx.core.view.get
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.os.BundleCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.AndroidViewModel
@@ -66,6 +70,7 @@ import com.google.android.apps.muzei.settings.AboutActivity
 import com.google.android.apps.muzei.sync.ProviderManager
 import com.google.android.apps.muzei.util.autoCleared
 import com.google.android.apps.muzei.util.collectIn
+import com.google.android.apps.muzei.util.getSerializableCompat
 import com.google.android.apps.muzei.util.makeCubicGradientScrimDrawable
 import com.google.android.apps.muzei.util.sendFromBackground
 import com.google.android.apps.muzei.widget.showWidgetPreview
@@ -177,10 +182,10 @@ class ArtDetailFragment : Fragment(R.layout.art_detail_fragment) {
         binding.chromeContainer.background = makeCubicGradientScrimDrawable(Gravity.BOTTOM, 0xAA,
                 scrimColor, scrimColor, scrimColor)
 
-        @Suppress("DEPRECATION")
-        view.setOnSystemUiVisibilityChangeListener { vis ->
-            val visible = vis and View.SYSTEM_UI_FLAG_LOW_PROFILE == 0
-            animateChromeVisibility(visible)
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            showChrome = insets.isVisible(WindowInsetsCompat.Type.statusBars())
+            animateChromeVisibility(showChrome)
+            insets
         }
 
         binding.title.typeface = ResourcesCompat.getFont(requireContext(), R.font.alegreya_sans_black)
@@ -295,11 +300,8 @@ class ArtDetailFragment : Fragment(R.layout.art_detail_fragment) {
                 }
             }
             onSingleTapUp = {
-                activity?.window?.let {
-                    @Suppress("DEPRECATION")
-                    showHideChrome(it.decorView.systemUiVisibility and
-                            View.SYSTEM_UI_FLAG_LOW_PROFILE != 0)
-                }
+                showChrome = !showChrome
+                showHideChrome(showChrome)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val scope = viewLifecycleOwner.lifecycleScope
@@ -438,20 +440,13 @@ class ArtDetailFragment : Fragment(R.layout.art_detail_fragment) {
     }
 
     private fun showHideChrome(show: Boolean) {
-        @Suppress("DEPRECATION")
-        requireActivity().window.decorView.apply {
-            var flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0
-            flags = flags or if (show) 0 else View.SYSTEM_UI_FLAG_LOW_PROFILE
-            flags = flags or (View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE)
-            if (!show) {
-                flags = flags or (View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        or View.SYSTEM_UI_FLAG_FULLSCREEN
-                        or View.SYSTEM_UI_FLAG_IMMERSIVE)
+        val window = activity?.window ?: return
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            if (show) {
+                show(WindowInsetsCompat.Type.systemBars())
+            } else {
+                hide(WindowInsetsCompat.Type.systemBars())
             }
-            systemUiVisibility = flags
         }
     }
 
