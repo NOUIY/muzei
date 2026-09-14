@@ -112,7 +112,7 @@ dependencies {
     implementation libs.coil.okhttp
     implementation libs.wearable.playservices
     implementation libs.tasker
-    implementation libs.subsampling
+    implementation libs.telephoto
     implementation libs.activity
     implementation libs.core
     implementation platform(libs.compose.bom)

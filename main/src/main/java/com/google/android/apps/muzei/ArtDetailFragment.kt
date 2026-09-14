@@ -31,13 +31,24 @@ import android.view.ViewGroup
 import android.view.ViewPropertyAnimator
 import android.widget.TextView
 import androidx.appcompat.widget.TooltipCompat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.RemoteActionCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.children
-import androidx.core.view.get
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -48,14 +59,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.fragment.findNavController
-import androidx.savedstate.findViewTreeSavedStateRegistryOwner
-import com.davemorrissey.labs.subscaleview.ImageSource
-import com.davemorrissey.labs.subscaleview.ImageViewState
-import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
-import com.google.android.apps.muzei.api.MuzeiContract
 import com.google.android.apps.muzei.notifications.NewWallpaperNotificationReceiver
 import com.google.android.apps.muzei.render.ArtworkSizeStateFlow
-import com.google.android.apps.muzei.render.ContentUriImageLoader
 import com.google.android.apps.muzei.render.SwitchingPhotosDone
 import com.google.android.apps.muzei.render.SwitchingPhotosInProgress
 import com.google.android.apps.muzei.render.SwitchingPhotosStateFlow
@@ -64,9 +69,10 @@ import com.google.android.apps.muzei.room.getCommands
 import com.google.android.apps.muzei.room.openArtworkInfo
 import com.google.android.apps.muzei.settings.AboutActivity
 import com.google.android.apps.muzei.sync.ProviderManager
+import com.google.android.apps.muzei.theme.AppTheme
+import com.google.android.apps.muzei.util.LoadAwareAnimatedContent
 import com.google.android.apps.muzei.util.autoCleared
 import com.google.android.apps.muzei.util.collectIn
-import com.google.android.apps.muzei.util.getSerializableCompat
 import com.google.android.apps.muzei.util.makeCubicGradientScrimDrawable
 import com.google.android.apps.muzei.util.sendFromBackground
 import com.google.android.apps.muzei.widget.showWidgetPreview
@@ -74,7 +80,6 @@ import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.analytics.logEvent
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
@@ -86,7 +91,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import net.nurik.roman.muzei.R
 import net.nurik.roman.muzei.databinding.ArtDetailFragmentBinding
 import kotlin.time.Duration.Companion.milliseconds
@@ -116,7 +120,6 @@ class ArtDetailViewModel(application: Application) : AndroidViewModel(applicatio
 class ArtDetailFragment : Fragment(R.layout.art_detail_fragment) {
 
     companion object {
-        private const val KEY_IMAGE_VIEW_STATE = "IMAGE_VIEW_STATE"
         private val SOURCE_ACTION_IDS = intArrayOf(
                 R.id.source_action_1,
                 R.id.source_action_2,
@@ -246,42 +249,45 @@ class ArtDetailFragment : Fragment(R.layout.art_detail_fragment) {
         }
         TooltipCompat.setTooltipText(binding.nextArtwork, binding.nextArtwork.contentDescription)
 
-        // Ensure that when the view state is saved, the SubsamplingScaleImageView also
-        // has its state saved
-        view.findViewTreeSavedStateRegistryOwner()?.savedStateRegistry
-                ?.registerSavedStateProvider(KEY_IMAGE_VIEW_STATE) {
-                    val backgroundImage =
-                            binding.backgroundImageContainer[binding.backgroundImageContainer.displayedChild]
-                                    as SubsamplingScaleImageView
-                    Bundle().apply {
-                        putSerializable(KEY_IMAGE_VIEW_STATE, backgroundImage.state)
-                    }
-                }
-        binding.backgroundImageContainer.isVisible = showBackgroundImage
-        val viewLifecycle = viewLifecycleOwner.lifecycle
-        binding.backgroundImageContainer.children.forEachIndexed { index, img ->
-            val backgroundImage = img as SubsamplingScaleImageView
-            backgroundImage.apply {
-                setMinimumScaleType(SubsamplingScaleImageView.SCALE_TYPE_CENTER_CROP)
-                setOnImageEventListener(object : SubsamplingScaleImageView.DefaultOnImageEventListener() {
-                    override fun onImageLoaded() {
-                        if (viewLifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
-                            // Only update the displayedChild when the image has finished loading
-                            binding.backgroundImageContainer.displayedChild = index
+        binding.backgroundImage.isVisible = showBackgroundImage
+        binding.backgroundImage.setContent {
+            AppTheme(
+                dynamicColor = false
+            ) {
+                val currentArtwork by viewModel.currentArtwork.collectAsState()
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    LoadAwareAnimatedContent(
+                        currentArtwork,
+                        label = "backgroundImage",
+                        modifier = Modifier.fillMaxSize(),
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(750))
+                                .togetherWith(fadeOut(animationSpec = tween(750)))
+                        },
+                        contentAlignment = Alignment.Center,
+                        contentKey = { it?.id }
+                    ) { artwork, onLoadComplete ->
+                        if (artwork != null) {
+                            val scope = rememberCoroutineScope()
+                            val context = LocalContext.current
+                            ArtDetailImage(
+                                artwork,
+                                modifier = Modifier.fillMaxSize(),
+                                onLoadComplete = onLoadComplete,
+                                contentScale = ContentScale.Crop,
+                                onClick = {
+                                    showChrome = !showChrome
+                                    animateChromeVisibility(showChrome)
+                                },
+                                onLongClick = {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        scope.launch {
+                                            showWidgetPreview(context.applicationContext)
+                                        }
+                                    }
+                                },
+                            )
                         }
-                    }
-                })
-                setOnClickListener {
-                    showChrome = !showChrome
-                    animateChromeVisibility(showChrome)
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val scope = viewLifecycleOwner.lifecycleScope
-                    setOnLongClickListener {
-                        scope.launch {
-                            showWidgetPreview(requireContext().applicationContext)
-                        }
-                        true
                     }
                 }
             }
@@ -359,31 +365,6 @@ class ArtDetailFragment : Fragment(R.layout.art_detail_fragment) {
                         param(FirebaseAnalytics.Param.CONTENT_TYPE, "art_detail")
                     }
                     viewModel.currentArtwork.value?.openArtworkInfo(context)
-                }
-            }
-
-            if (binding.backgroundImageContainer.isVisible) {
-                viewLifecycleOwner.lifecycleScope.launch {
-                    val nextId = (binding.backgroundImageContainer.displayedChild + 1) % 2
-                    val orientation = withContext(Dispatchers.IO) {
-                        ContentUriImageLoader(requireContext().contentResolver,
-                                MuzeiContract.Artwork.CONTENT_URI).getRotation()
-                    }
-                    val backgroundImage = binding.backgroundImageContainer[nextId]
-                            as SubsamplingScaleImageView
-                    backgroundImage.orientation = orientation
-                    // Try to restore any saved state of the SubsamplingScaleImageView
-                    // This would normally only be available after onViewStateRestored(), but
-                    // this is within coroutine that is only launched when STARTED
-                    val backgroundImageViewState = view.findViewTreeSavedStateRegistryOwner()
-                            ?.savedStateRegistry
-                            ?.consumeRestoredStateForKey(KEY_IMAGE_VIEW_STATE)
-                            ?.getSerializableCompat<ImageViewState>(KEY_IMAGE_VIEW_STATE)
-                    backgroundImage.setImage(ImageSource.uri(MuzeiContract.Artwork.CONTENT_URI),
-                            backgroundImageViewState)
-                    // Set the image to visible since SubsamplingScaleImageView does some of
-                    // its processing in onDraw()
-                    backgroundImage.isVisible = true
                 }
             }
 
